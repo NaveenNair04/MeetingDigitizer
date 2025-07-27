@@ -1,0 +1,6 @@
+# Ignore input video files
+input/*
+
+# Ignore output files
+output/*
+

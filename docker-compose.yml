@@ -1,0 +1,46 @@
+services:
+  kafka:
+    build: ./kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_KRAFT_CLUSTER_ID: my-cluster-id
+    volumes:
+      - kafka_data:/bitnami/kafka
+
+  producer:
+    build: ./producer
+    restart: on-failure
+    depends_on:
+      - kafka
+    volumes:
+      - ./input:/input
+
+  spark:
+    build: ./spark
+    depends_on:
+      - kafka
+    volumes:
+      - ./input:/input
+      - ./output:/output
+
+  consumer:
+    build: ./consumer
+    restart: on-failure
+    depends_on:
+      - kafka
+    environment:
+      - DISPLAY=${DISPLAY}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ./output:/output
+
+volumes:
+  kafka_data:
