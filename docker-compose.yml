@@ -37,6 +37,7 @@ services:
     depends_on:
       - kafka
     volumes:
+      - ./video-consumer:/app
       - ./output/video:/output
 
   audio-consumer:
@@ -45,6 +46,7 @@ services:
     depends_on:
       - kafka
     volumes:
+      - ./audio-consumer:/app
       - ./output/audio:/output
 
 volumes:

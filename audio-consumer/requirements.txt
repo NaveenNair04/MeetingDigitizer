@@ -1,2 +1,8 @@
 kafka-python
+numpy
+scipy
+soundfile
+torch
+resemblyzer
+faster-whisper
 
