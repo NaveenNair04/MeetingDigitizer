@@ -31,16 +31,21 @@ services:
       - ./input:/input
       - ./output:/output
 
-  consumer:
-    build: ./consumer
+  video-consumer:
+    build: ./video-consumer
     restart: on-failure
     depends_on:
       - kafka
-    environment:
-      - DISPLAY=${DISPLAY}
     volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix
-      - ./output:/output
+      - ./output/video:/output
+
+  audio-consumer:
+    build: ./audio-consumer
+    restart: on-failure
+    depends_on:
+      - kafka
+    volumes:
+      - ./output/audio:/output
 
 volumes:
   kafka_data:
