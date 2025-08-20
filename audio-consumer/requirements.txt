@@ -5,4 +5,7 @@ soundfile
 torch
 resemblyzer
 faster-whisper
-
+scikit-learn  
+pydub
+speechrecognition
+spectralcluster
