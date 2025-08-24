@@ -49,23 +49,23 @@ services:
   #     - ./audio-consumer:/app
   #     - ./output/audio:/output
       
-  # diagram-consumer:
-  #   build: ./diagram-consumer
-  #   restart: on-failure
-  #   depends_on:
-  #     - kafka
-  #   volumes:
-  #     - ./diagram-consumer:/app
-  #     - ./output/diagram:/output
-
-  ocr-consumer:
-    build: ./ocr-consumer
+  diagram-consumer:
+    build: ./diagram-consumer
     restart: on-failure
     depends_on:
       - kafka
     volumes:
-      - ./ocr-consumer:/app
-      - ./output/text:/output
+      - ./diagram-consumer:/app
+      - ./output/diagram:/output
+
+  # ocr-consumer:
+  #   build: ./ocr-consumer
+  #   restart: on-failure
+  #   depends_on:
+  #     - kafka
+  #   volumes:
+  #     - ./ocr-consumer:/app
+  #     - ./output/text:/output
 
 
 volumes:
