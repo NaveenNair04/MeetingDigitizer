@@ -1,0 +1,7 @@
+kafka-python
+numpy
+opencv-python-headless
+scikit-learn
+python-docx
+paddleocr
+Pillow

@@ -31,23 +31,42 @@ services:
       - ./input:/input
       - ./output:/output
 
-  video-consumer:
-    build: ./video-consumer
-    restart: on-failure
-    depends_on:
-      - kafka
-    volumes:
-      - ./video-consumer:/app
-      - ./output/video:/output
+  # video-consumer:
+  #   build: ./video-consumer
+  #   restart: on-failure
+  #   depends_on:
+  #     - kafka
+  #   volumes:
+  #     - ./video-consumer:/app
+  #     - ./output/video:/output
 
-  audio-consumer:
-    build: ./audio-consumer
+  # audio-consumer:
+  #   build: ./audio-consumer
+  #   restart: on-failure
+  #   depends_on:
+  #     - kafka
+  #   volumes:
+  #     - ./audio-consumer:/app
+  #     - ./output/audio:/output
+      
+  # diagram-consumer:
+  #   build: ./diagram-consumer
+  #   restart: on-failure
+  #   depends_on:
+  #     - kafka
+  #   volumes:
+  #     - ./diagram-consumer:/app
+  #     - ./output/diagram:/output
+
+  ocr-consumer:
+    build: ./ocr-consumer
     restart: on-failure
     depends_on:
       - kafka
     volumes:
-      - ./audio-consumer:/app
-      - ./output/audio:/output
+      - ./ocr-consumer:/app
+      - ./output/text:/output
+
 
 volumes:
   kafka_data:

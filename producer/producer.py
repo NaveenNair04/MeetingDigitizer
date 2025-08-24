@@ -8,7 +8,7 @@ import base64
 
 KAFKA_SERVER = "kafka:9092"
 VIDEO_FILE = "/input/dp_tutorial.mp4"
-CHUNK_SIZE = 4096  # bytes
+CHUNK_SIZE = 4096  # bytes (used only for audio)
 
 def create_kafka_producer():
     """Retry KafkaProducer connection until Kafka is ready."""
@@ -24,14 +24,10 @@ def create_kafka_producer():
             print("Kafka not available. Retrying in 2 seconds...", flush=True)
             time.sleep(2)
 
-def stream_to_kafka(topic: str, ffmpeg_cmd: list):
-    """Run FFmpeg command and stream stdout to Kafka with timestamps"""
+def stream_audio_to_kafka(topic: str, ffmpeg_cmd: list):
+    """Stream audio chunks to Kafka (unchanged)."""
     producer = create_kafka_producer()
-
-    print(f"Starting FFmpeg for {topic}...", flush=True)
-    process = subprocess.Popen(
-        ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
+    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def log_stderr():
         for line in process.stderr:
@@ -48,27 +44,75 @@ def stream_to_kafka(topic: str, ffmpeg_cmd: list):
             if not chunk:
                 break
 
-            # Base64-encode the raw bytes so we can ship them inside JSON safely
             message = {
                 "timestamp": time.time(),
                 "data": base64.b64encode(chunk).decode("utf-8"),
             }
             producer.send(topic, message)
 
-            print(
-                f"[Producer] Sent chunk to {topic} (size={len(chunk)} bytes, ts={message['timestamp']:.6f})",
-                flush=True,
-            )
+            print(f"[Producer] Sent audio chunk (size={len(chunk)})", flush=True)
+
     finally:
         process.stdout.close()
         process.wait()
         producer.flush()
         print(f"Finished streaming {topic}", flush=True)
 
+def stream_video_frames(topic: str, ffmpeg_cmd: list):
+    """Extract video frames as JPEGs and stream to Kafka as JSON messages."""
+    producer = create_kafka_producer()
+    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    def log_stderr():
+        for line in process.stderr:
+            line = line.decode(errors="ignore").strip()
+            if line:
+                print(f"[FFmpeg:{topic}] {line}", flush=True)
+
+    threading.Thread(target=log_stderr, daemon=True).start()
+    print(f"🎥 Streaming {topic} to Kafka ...", flush=True)
+
+    frame_id = 0
+    buffer = b""
+
+    try:
+        while True:
+            chunk = process.stdout.read(4096)
+            if not chunk:
+                break
+
+            buffer += chunk
+            start = buffer.find(b"\xff\xd8")  # JPEG SOI
+            end = buffer.find(b"\xff\xd9")    # JPEG EOI
+
+            while start != -1 and end != -1 and end > start:
+                jpeg_bytes = buffer[start:end+2]
+                buffer = buffer[end+2:]
+
+                frame_id += 1
+                message = {
+                    "frame_id": frame_id,
+                    "timestamp": time.time(),
+                    "frame": base64.b64encode(jpeg_bytes).decode("utf-8"),
+                }
+
+                # Send JSON message
+                producer.send(topic, message)
+                print(f"[Producer] Sent frame {frame_id} ({len(jpeg_bytes)} bytes)", flush=True)
+
+                start = buffer.find(b"\xff\xd8")
+                end = buffer.find(b"\xff\xd9")
+
+    finally:
+        process.stdout.close()
+        process.wait()
+        producer.flush()
+        print(f"🏁 Finished streaming {topic}", flush=True)
+
 if __name__ == "__main__":
     print("Starting the producer...", flush=True)
 
-    # AUDIO: output raw PCM s16le @ 16 kHz mono (easy to decode on consumer)
+    # AUDIO: unchanged
     audio_cmd = [
         "ffmpeg", "-re", "-i", VIDEO_FILE,
         "-f", "s16le", "-acodec", "pcm_s16le",
@@ -76,15 +120,16 @@ if __name__ == "__main__":
         "-vn", "-loglevel", "warning", "-"
     ]
 
-    # VIDEO: unchanged (still sending H264 elementary stream)
+    # VIDEO: output frames as JPEG
     video_cmd = [
         "ffmpeg", "-re", "-i", VIDEO_FILE,
-        "-f", "h264", "-vcodec", "h264",
-        "-an", "-loglevel", "warning", "-"
+        "-vf", "fps=1",  # adjust FPS (1 frame/sec here, can increase)
+        "-f", "image2pipe", "-qscale:v", "2",
+        "-vcodec", "mjpeg", "-loglevel", "warning", "-"
     ]
 
-    t1 = threading.Thread(target=stream_to_kafka, args=("audio-stream", audio_cmd))
-    t2 = threading.Thread(target=stream_to_kafka, args=("video-stream", video_cmd))
+    t1 = threading.Thread(target=stream_audio_to_kafka, args=("audio-stream", audio_cmd))
+    t2 = threading.Thread(target=stream_video_frames, args=("video-stream", video_cmd))
     t1.start(); t2.start()
     t1.join(); t2.join()
 

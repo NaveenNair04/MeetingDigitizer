@@ -3,4 +3,7 @@ input/*
 
 # Ignore output files
 output/*
-
+ocr-consumer/debug_frames
+ocr-consumer/ocr_output
+ocr-consumer/raw_messages
+nish/*

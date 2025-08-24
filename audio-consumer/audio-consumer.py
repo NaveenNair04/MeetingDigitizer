@@ -39,8 +39,11 @@ def frame_audio(wav: np.ndarray, sr: int, win_sec: float, hop_sec: float):
             yield start / sr, end / sr, wav[start:end]
 
 
-def diarize(wav16k: np.ndarray):
-    """Perform real speaker diarization using embeddings + clustering."""
+def diarize(wav16k: np.ndarray, num_speakers: int = 2):
+    """
+    Real diarization with fixed number of speakers and merged segments.
+    Returns list of (start_s, end_s, spk).
+    """
     frames = list(frame_audio(wav16k, SAMPLE_RATE, EMB_WIN_SEC, EMB_HOP_SEC))
     if not frames:
         return []
@@ -48,33 +51,53 @@ def diarize(wav16k: np.ndarray):
     embs = []
     times = []
     for s, e, seg in frames:
-        emb = encoder.embed_utterance(seg)
-        embs.append(emb)
+        embs.append(encoder.embed_utterance(seg))
         times.append((s, e))
     embs = np.vstack(embs)
 
-    # Agglomerative clustering works well for unknown number of speakers
-    cluster_model = AgglomerativeClustering(n_clusters=None, distance_threshold=0.75)
-    labels = cluster_model.fit_predict(embs)
+    # Force exactly num_speakers clusters
+    from sklearn.cluster import KMeans
+    km = KMeans(n_clusters=num_speakers, n_init=10, random_state=0)
+    labels = km.fit_predict(embs)
 
+    # Merge consecutive frames of same speaker
     diar_segments = []
-    for (s, e), lab in zip(times, labels):
-        diar_segments.append((s, e, f"spk{lab+1}"))
+    prev_lab = labels[0]
+    seg_start, seg_end = times[0]
+
+    for (s, e), lab in zip(times[1:], labels[1:]):
+        if lab == prev_lab:
+            seg_end = e  # extend segment
+        else:
+            diar_segments.append((seg_start, seg_end, f"spk{prev_lab+1}"))
+            seg_start, seg_end = s, e
+            prev_lab = lab
+
+    diar_segments.append((seg_start, seg_end, f"spk{prev_lab+1}"))
     return diar_segments
 
 
 def assign_speakers_to_asr_segments(diar, asr_segments):
+    """
+    Assign speakers to ASR segments based on merged diarization.
+    Each ASR segment is labeled by the speaker whose segment it overlaps the most.
+    """
     if not diar:
         return [("spk?", s) for s in asr_segments]
 
-    diar_centers = np.array([(s + e) / 2.0 for s, e, _ in diar])
     out = []
     for seg in asr_segments:
-        seg_mid = (seg.start + seg.end) / 2.0
-        idx = int(np.argmin(np.abs(diar_centers - seg_mid)))
-        spk = diar[idx][2]
-        out.append((spk, seg))
+        # Compute overlap with each diar segment
+        best_overlap = 0
+        assigned_spk = "spk?"
+        for s, e, spk in diar:
+            overlap = max(0, min(e, seg.end) - max(s, seg.start))
+            if overlap > best_overlap:
+                best_overlap = overlap
+                assigned_spk = spk
+        out.append((assigned_spk, seg))
     return out
+
 
 
 def process_window(pcm_chunk: bytes, kafka_timestamp: float):
