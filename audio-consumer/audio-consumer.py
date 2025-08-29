@@ -1,25 +1,36 @@
 import json
 import base64
 import numpy as np
-from kafka import KafkaConsumer
+from kafka import KafkaConsumer, KafkaProducer
 from resemblyzer import VoiceEncoder, preprocess_wav
 from faster_whisper import WhisperModel
 from sklearn.cluster import AgglomerativeClustering
 
-TOPIC = "audio-stream"
+# Topics
+INPUT_TOPIC = "audio-stream"
+OUTPUT_TOPIC = "audio-transcripts"
 BOOTSTRAP_SERVERS = "kafka:9092"
 
+# Audio params
 SAMPLE_RATE = 16000
 BYTES_PER_SAMPLE = 2  # s16le
 CHANNELS = 1
 WINDOW_SECONDS = 5.0
 WINDOW_BYTES = int(SAMPLE_RATE * BYTES_PER_SAMPLE * CHANNELS * WINDOW_SECONDS)
 
+# Embedding params
 EMB_WIN_SEC = 1.5
 EMB_HOP_SEC = 0.75
 
+# Models
 encoder = VoiceEncoder()  # CPU by default
 whisper_model = WhisperModel("base", device="cpu")  # or "cuda"
+
+# Kafka producer
+producer = KafkaProducer(
+    bootstrap_servers=[BOOTSTRAP_SERVERS],
+    value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+)
 
 
 def pcm_bytes_to_float32(pcm_bytes: bytes) -> np.ndarray:
@@ -99,7 +110,6 @@ def assign_speakers_to_asr_segments(diar, asr_segments):
     return out
 
 
-
 def process_window(pcm_chunk: bytes, kafka_timestamp: float):
     wav = pcm_bytes_to_float32(pcm_chunk)
     diar = diarize(wav)
@@ -110,11 +120,23 @@ def process_window(pcm_chunk: bytes, kafka_timestamp: float):
     for spk, seg in tagged:
         text = (seg.text or "").strip()
         if text:
+            msg = {
+                "kafka_timestamp": kafka_timestamp,
+                "start": seg.start,
+                "end": seg.end,
+                "speaker": spk,
+                "text": text,
+            }
+
+            # Print locally
             print(
                 f"[ASR] ts={kafka_timestamp:.6f} {spk} "
                 f"{seg.start:.2f}-{seg.end:.2f}s: {text}",
                 flush=True,
             )
+
+            # Send to Kafka output topic
+            producer.send(OUTPUT_TOPIC, msg)
 
 
 def _parse_payload(raw):
@@ -127,13 +149,13 @@ def _parse_payload(raw):
 
 def main():
     consumer = KafkaConsumer(
-        TOPIC,
+        INPUT_TOPIC,
         bootstrap_servers=[BOOTSTRAP_SERVERS],
         auto_offset_reset="earliest",
         group_id="audio-consumer",
         value_deserializer=lambda v: json.loads(v.decode("utf-8")),
     )
-    print(f"[Audio Consumer] Listening on topic: {TOPIC}", flush=True)
+    print(f"[Audio Consumer] Listening on topic: {INPUT_TOPIC}", flush=True)
 
     buffer = bytearray()
     last_ts = None

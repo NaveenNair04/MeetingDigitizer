@@ -17,7 +17,7 @@ INPUT_TOPIC = "video-stream"
 OUTPUT_TOPIC = "diagram-detections"
 
 # Output directories
-OUTPUT_DIR = "diagram_output"
+OUTPUT_DIR = "diagram-output"
 DEBUG_DIR = "debug_diagrams"
 RAW_DIR = "raw_messages"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
