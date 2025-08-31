@@ -2,6 +2,10 @@ from kafka import KafkaConsumer
 import threading
 import tkinter as tk
 import json
+from PIL import Image, ImageTk
+import io
+import base64
+
 
 # Kafka Consumers
 consumer_audio = KafkaConsumer(
@@ -43,9 +47,12 @@ def consume_audio(consumer, container, canvas):
     for message in consumer:
         msg = message.value
         text = f"[{msg['speaker']}] {msg['start']:.2f}-{msg['end']:.2f}s: {msg['text']}"
-        lbl = tk.Label(container, text=text, font=("Arial", 12),
-                       anchor="w", justify="left", bg="black", fg="white")
-        lbl.pack(fill="x", padx=5, pady=2)
+        lbl = tk.Label(
+            container, text=text, font=("Arial", 12),
+            anchor="w", justify="left", bg="black", fg="white",
+            wraplength=480  # 👈 ensures text fits inside panel
+        )
+        lbl.pack(anchor="w", padx=5, pady=2)
 
         if is_at_bottom(canvas):
             container.update_idletasks()
@@ -59,15 +66,17 @@ def consume_ocr(consumer, container, canvas):
         text = (f"[Frame {msg['frame_id']}] OCR: \"{msg['sentence']}\" "
                 f"(Conf: {msg['confidence']:.2f}, Words: {msg['word_count']}, "
                 f"Line: {msg['line_number']}, Time: {msg['readable_time']})")
-        
-        lbl = tk.Label(container, text=text, font=("Arial", 12),
-                       anchor="w", justify="left", bg="black", fg="lightgreen")
-        lbl.pack(fill="x", padx=5, pady=2)
+
+        lbl = tk.Label(
+            container, text=text, font=("Arial", 12),
+            anchor="w", justify="left", bg="black", fg="lightgreen",
+            wraplength=480
+        )
+        lbl.pack(anchor="w", padx=5, pady=2)
 
         if is_at_bottom(canvas):
             container.update_idletasks()
             canvas.yview_moveto(1.0)
-
 
 
 # Consume Diagram
@@ -76,23 +85,44 @@ def consume_diagram(consumer, container, canvas):
         msg = message.value
         extracted = msg.get('extracted_text', [])
         if isinstance(extracted, list):
-            extracted = " ".join(extracted) if extracted else "(no text)"
-        
+            extracted = " ".join(
+                [t['text'] for t in extracted if isinstance(t, dict) and 'text' in t]
+            ) if extracted else "(no text)"
+        elif not extracted:
+            extracted = "(no text)"
+
         text = (f"[Frame {msg['frame_id']}] Diagram: {msg['diagram_type']} "
                 f"(Conf: {msg['confidence']:.2f}, Area: {msg['area']}, "
                 f"Aspect: {msg['aspect_ratio']}, Time: {msg['readable_time']}) "
                 f"Text: {extracted}")
-        
-        lbl = tk.Label(container, text=text, font=("Arial", 12),
-                       anchor="w", justify="left", bg="black", fg="orange")
-        lbl.pack(fill="x", padx=5, pady=2)
+
+        lbl = tk.Label(
+            container, text=text, font=("Arial", 12),
+            anchor="w", justify="left", bg="black", fg="orange",
+            wraplength=480
+        )
+        lbl.pack(anchor="w", padx=5, pady=2)
+
+        # 🔥 If image is present, decode and display it
+        if "diagram_image" in msg:
+            try:
+                img_bytes = base64.b64decode(msg["diagram_image"])
+                img = Image.open(io.BytesIO(img_bytes))
+                img.thumbnail((450, 300))  # 👈 keeps image bounded inside section
+                tk_img = ImageTk.PhotoImage(img)
+
+                img_label = tk.Label(container, image=tk_img, bg="black")
+                img_label.image = tk_img  # keep reference
+                img_label.pack(anchor="w", padx=5, pady=5)
+            except Exception as e:
+                print(f"⚠️ Failed to render diagram image: {e}")
 
         if is_at_bottom(canvas):
             container.update_idletasks()
             canvas.yview_moveto(1.0)
 
 
-
+# Mousewheel Binding
 def bind_mousewheel(canvas):
     def _on_mousewheel(event):
         system = canvas.tk.call("tk", "windowingsystem")
@@ -123,11 +153,11 @@ def bind_mousewheel(canvas):
     ))
 
 
-def create_scrollable_frame(parent, width=400, height=600, bg="black"):
+def create_scrollable_frame(parent, width=500, height=700, bg="black"):
     canvas = tk.Canvas(parent, width=width, height=height, bg=bg, highlightthickness=0)
     scroll_frame = tk.Frame(canvas, bg=bg)
 
-    scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all"), width=width))
     canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
     canvas.pack(side=tk.LEFT, fill="both", expand=True)
 

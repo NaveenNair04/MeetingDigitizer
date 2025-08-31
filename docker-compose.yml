@@ -39,6 +39,16 @@ services:
   #   volumes:
   #     - ./video-consumer:/app
   #     - ./output/video:/output
+  display:
+    build: ./display
+    restart: on-failure
+    depends_on:
+      - kafka
+    environment:
+      - DISPLAY=host.docker.internal:0.0
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ./display:/app
 
   audio-consumer:
     build: ./audio-consumer
@@ -67,19 +77,17 @@ services:
       - ./ocr-consumer:/app
       - ./output/text:/output
 
-  display:
-    build: ./display
+  word-consumer:
+    build: ./word-consumer
     restart: on-failure
     depends_on:
       - kafka
     environment:
-      - DISPLAY=host.docker.internal:0.0
+      - KAFKA_BOOTSTRAP=kafka:9092
     volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix
-      - ./display:/app
-
-
-
+      - ./output:/output
+      - ./word-consumer:/app
+      - ./output:/app/output
 
 volumes:
   kafka_data:
