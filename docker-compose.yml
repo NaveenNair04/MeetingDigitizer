@@ -50,6 +50,18 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - ./display:/app
 
+  word-consumer:
+    build: ./word-consumer
+    restart: on-failure
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_BOOTSTRAP=kafka:9092
+    volumes:
+      - ./output:/output
+      - ./word-consumer:/app
+      - ./output:/app/output
+
   audio-consumer:
     build: ./audio-consumer
     restart: on-failure
@@ -77,17 +89,7 @@ services:
       - ./ocr-consumer:/app
       - ./output/text:/output
 
-  word-consumer:
-    build: ./word-consumer
-    restart: on-failure
-    depends_on:
-      - kafka
-    environment:
-      - KAFKA_BOOTSTRAP=kafka:9092
-    volumes:
-      - ./output:/output
-      - ./word-consumer:/app
-      - ./output:/app/output
+  
 
 volumes:
   kafka_data:
