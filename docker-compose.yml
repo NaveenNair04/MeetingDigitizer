@@ -89,6 +89,17 @@ services:
       - ./ocr-consumer:/app
       - ./output/text:/output
 
+  summarizer:
+    build:
+      context: ./summarizer
+      dockerfile: Dockerfile
+    container_name: summarizer
+    volumes:
+      - ./output:/app/output
+      - ./summarizer:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: ["python", "summarizer.py"]
   
 
 volumes:

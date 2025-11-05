@@ -15,3 +15,5 @@ diagram-consumer/diagram_docs
 diagram-consumer/diagram_output
 diagram-consumer/output_diagram
 diagram-consumer/raw_messages
+
+summarizer/pegasus_custom

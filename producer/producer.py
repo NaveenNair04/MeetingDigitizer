@@ -7,7 +7,7 @@ import json
 import base64
 
 KAFKA_SERVER = "kafka:9092"
-VIDEO_FILE = "/input/dp_tutorial.mp4"
+VIDEO_FILE = "/input/meeting.mp4"
 CHUNK_SIZE = 4096  # bytes (used only for audio)
 
 def create_kafka_producer():
