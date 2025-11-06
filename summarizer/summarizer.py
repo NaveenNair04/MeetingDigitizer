@@ -276,6 +276,25 @@ def summarize_with_pegasus(merged_docx_path, model_path="pegasus_custom", output
 # ======================
 
 if __name__ == "__main__":
+
+    print("⏳ Waiting for summarization trigger from Kafka...")
+
+    consumer = KafkaConsumer(
+        "summarization-ready",
+        bootstrap_servers="kafka:9092",
+        value_deserializer=lambda v: json.loads(v.decode("utf-8")),
+        auto_offset_reset="earliest",
+        enable_auto_commit=True,
+        group_id="summarizer-group"
+    )
+
+    # Block until "done" message is received
+    for msg in consumer:
+        data = msg.value
+        if isinstance(data, dict) and data.get("status") == "done":
+            print("✅ Received summarization trigger. Proceeding...\n")
+            break
+
     OUTPUT_DIR = "output"
 
     audio_path = os.path.join(OUTPUT_DIR, "audio_transcripts.docx")
@@ -303,3 +322,4 @@ if __name__ == "__main__":
     )
 
     print("\n📝 Summary Preview:\n", summary_text)
+

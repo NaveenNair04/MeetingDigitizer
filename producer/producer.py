@@ -7,7 +7,7 @@ import json
 import base64
 
 KAFKA_SERVER = "kafka:9092"
-VIDEO_FILE = "/input/meeting.mp4"
+VIDEO_FILE = "/input/meeting_smaller.mp4"
 CHUNK_SIZE = 4096  # bytes (used only for audio)
 
 def create_kafka_producer():
@@ -133,4 +133,9 @@ if __name__ == "__main__":
     t1.start(); t2.start()
     t1.join(); t2.join()
 
-    print("Done streaming audio and video.", flush=True)
+    print("✅ Done streaming audio and video. Sending completion signal...", flush=True)
+
+    # ✅ NEW: Send DONE message to pipeline-status
+    producer = create_kafka_producer()
+    producer.send("pipeline-status", {"event": "DONE", "timestamp": time.time()})
+    producer.flush()

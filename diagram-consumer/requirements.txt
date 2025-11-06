@@ -3,6 +3,6 @@ scikit-learn
 python-docx
 numpy==1.26.4
 opencv-python-headless==4.8.1.78
+paddlepaddle==2.6.1
 paddleocr==2.7.3
-paddlepaddle==2.5.2
 Pillow
