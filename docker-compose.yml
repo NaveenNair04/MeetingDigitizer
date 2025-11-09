@@ -1,6 +1,6 @@
 services:
   kafka:
-    image: bitnami/kafka:3.6.0
+    build: ./kafka
     ports:
       - "9092:9092"
     environment:
@@ -11,7 +11,7 @@ services:
       KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_KRAFT_CLUSTER_ID: my-cluster-id
+      KAFKA_KRAFT_CLUSTER_ID: b6fFQdPhp0WIWIJk2hip1g
     volumes:
       - kafka_data:/bitnami/kafka
 

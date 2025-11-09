@@ -3,3 +3,4 @@ transformers>=4.30.0
 python-docx>=0.8.11
 tqdm>=4.66.0
 sentencepiece
+kafka-python

@@ -1,4 +1,4 @@
-FROM bitnami/kafka:latest
+FROM docker.io/bitnamilegacy/kafka:3.6.0
 
 # Temporarily switch to root to install netcat
 USER root
@@ -12,4 +12,3 @@ COPY --chmod=755 kafka-setup.sh /kafka-setup.sh
 
 # ✅ Switch back to the default user expected by Bitnami (typically UID 1001)
 USER 1001
-

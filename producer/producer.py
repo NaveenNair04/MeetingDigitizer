@@ -137,5 +137,5 @@ if __name__ == "__main__":
 
     # ✅ NEW: Send DONE message to pipeline-status
     producer = create_kafka_producer()
-    producer.send("pipeline-status", {"event": "DONE", "timestamp": time.time()})
+    producer.send("pipeline-status", {"status": "done", "timestamp": time.time()})
     producer.flush()

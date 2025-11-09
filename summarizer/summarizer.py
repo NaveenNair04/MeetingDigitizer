@@ -7,6 +7,9 @@ from docx import Document
 from docx.shared import Inches
 from transformers import PegasusTokenizer, PegasusForConditionalGeneration
 import torch
+import json
+from kafka import KafkaConsumer
+
 
 # ======================
 # 🔹 TIMESTAMP HELPERS
@@ -280,7 +283,7 @@ if __name__ == "__main__":
     print("⏳ Waiting for summarization trigger from Kafka...")
 
     consumer = KafkaConsumer(
-        "summarization-ready",
+        "pipeline-status",
         bootstrap_servers="kafka:9092",
         value_deserializer=lambda v: json.loads(v.decode("utf-8")),
         auto_offset_reset="earliest",
